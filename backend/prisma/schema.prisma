@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+  SCHEDULED
+}
+
+enum RedirectType {
+  PERMANENT // 301
+  TEMPORARY // 302
+}
+
+model User {
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique
+  password  String
+  role      Role      @default(EDITOR)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete
+
+  pageVersions PageVersion[]
+  auditLogs    AuditLog[]
+}
+
+model Page {
+  id              String    @id @default(uuid())
+  slug            String    @unique
+  title           String
+  description     String?
+  seoTitle        String?
+  seoDescription  String?
+  ogImage         String?
+  status          PageStatus @default(DRAFT)
+  publishAt       DateTime?
+  version         Int       @default(1)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime? // Soft delete
+
+  sections        Section[]
+  versions        PageVersion[]
+  redirectsFrom   Redirect[] @relation("FromRedirect")
+}
+
+model PageVersion {
+  id        String   @id @default(uuid())
+  pageId    String
+  page      Page     @relation(fields: [pageId], references: [id])
+  content   Json     // Full snapshot of sections and config
+  version   Int
+  createdBy String
+  user      User     @relation(fields: [createdBy], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Section {
+  id          String   @id @default(uuid())
+  type        String   // hero, slider, grid, etc.
+  config      Json     // Dynamic configuration
+  order       Int
+  isVisible   Boolean  @default(true)
+  isTemplate  Boolean  @default(false)
+  templateName String?
+  pageId      String?
+  page        Page?     @relation(fields: [pageId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime? // Soft delete
+}
+
+model SectionTemplate {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  type      String
+  config    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id             String   @id @default(uuid())
+  nameAr         String
+  nameEn         String
+  descAr         String
+  descEn         String
+  price          Float?
+  images         Json     // Array of image objects {url, alt}
+  specifications Json     // Dynamic specs {key: val}
+  categoryId     String
+  category       Category @relation(fields: [categoryId], references: [id])
+  isVisible      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime? // Soft delete
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  nameAr    String
+  nameEn    String
+  descAr    String?
+  descEn    String?
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete
+}
+
+model Media {
+  id        String   @id @default(uuid())
+  url       String
+  filename  String
+  alt       String?
+  mimetype  String
+  size      Int
+  metadata  Json?    // Dimensions, SEO tags
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime? // Soft delete
+}
+
+model Inquiry {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  phone     String?
+  company   String?
+  product   String?
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  deletedAt DateTime? // Soft delete
+}
+
+model Redirect {
+  id        String       @id @default(uuid())
+  fromSlug  String       @unique
+  toSlug    String
+  type      RedirectType @default(PERMANENT)
+  pageId    String?
+  page      Page?        @relation("FromRedirect", fields: [pageId], references: [id])
+  createdAt DateTime     @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  action     String   // CREATE, UPDATE, DELETE, PUBLISH, etc.
+  resource   String   // PAGE, SECTION, PRODUCT, etc.
+  resourceId String
+  details    Json?    // Before/After changes
+  createdAt  DateTime @default(now())
+}
+
+model Setting {
+  id    String @id @default(uuid())
+  key   String @unique
+  value Json
+}
