@@ -12,6 +12,7 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
+    "types": ["node", "express", "multer"],
     "paths": {
       "@/*": ["src/*"]
     }
